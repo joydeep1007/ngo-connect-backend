@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NGO Connect - Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .status-pending {
+            @apply bg-yellow-100 text-yellow-800;
+        }
+
+        .status-approved {
+            @apply bg-green-100 text-green-800;
+        }
+
+        .status-rejected {
+            @apply bg-red-100 text-red-800;
+        }
+
+        .status-contacted {
+            @apply bg-blue-100 text-blue-800;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <header class="bg-white shadow">
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <h1 class="text-3xl font-bold text-gray-900">Volunteer Applications</h1>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <div class="px-4 py-6 sm:px-0">
+                <div class="bg-white shadow overflow-hidden sm:rounded-md">
+                    <div class="px-4 py-5 sm:p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-lg font-medium text-gray-900">Applications</h2>
+                            <button onclick="loadVolunteers()"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                                Refresh
+                            </button>
+                        </div>
+
+                        <div id="loading" class="text-center py-8">
+                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600">
+                            </div>
+                            <p class="mt-2 text-gray-600">Loading applications...</p>
+                        </div>
+
+                        <div id="error" class="hidden bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                            <p class="text-red-800" id="error-message"></p>
+                        </div>
+
+                        <div id="volunteers-container" class="hidden">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Name</th>
+                                            <th
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Email</th>
+                                            <th
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Phone</th>
+                                            <th
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Interest</th>
+                                            <th
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Status</th>
+                                            <th
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Date</th>
+                                            <th
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="volunteers-table" class="bg-white divide-y divide-gray-200">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3002/api';
+
+        async function loadVolunteers() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const container = document.getElementById('volunteers-container');
+
+            loading.classList.remove('hidden');
+            error.classList.add('hidden');
+            container.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${API_BASE}/volunteers`);
+                const result = await response.json();
+
+                if (result.success) {
+                    displayVolunteers(result.data);
+                    container.classList.remove('hidden');
+                } else {
+                    showError(result.message || 'Failed to load volunteers');
+                }
+            } catch (err) {
+                showError('Network error. Please check if the backend server is running.');
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        function displayVolunteers(volunteers) {
+            const tbody = document.getElementById('volunteers-table');
+            tbody.innerHTML = '';
+
+            volunteers.forEach(volunteer => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${volunteer.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${volunteer.email}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${volunteer.phone}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatInterest(volunteer.interest)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full status-${volunteer.status}">
+                            ${volunteer.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(volunteer.created_at)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <select onchange="updateStatus(${volunteer.id}, this.value)" class="border rounded px-2 py-1 text-xs">
+                            <option value="pending" ${volunteer.status === 'pending' ? 'selected' : ''}>Pending</option>
+                            <option value="approved" ${volunteer.status === 'approved' ? 'selected' : ''}>Approved</option>
+                            <option value="rejected" ${volunteer.status === 'rejected' ? 'selected' : ''}>Rejected</option>
+                            <option value="contacted" ${volunteer.status === 'contacted' ? 'selected' : ''}>Contacted</option>
+                        </select>
+                        ${volunteer.message ? `<button onclick="showMessage('${volunteer.message.replace(/'/g, "\\'")}', '${volunteer.name}')" class="ml-2 text-blue-600 hover:text-blue-900">View Message</button>` : ''}
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function updateStatus(id, status) {
+            try {
+                const response = await fetch(`${API_BASE}/volunteers/${id}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status }),
+                });
+
+                const result = await response.json();
+                if (!result.success) {
+                    alert('Failed to update status: ' + result.message);
+                    loadVolunteers(); // Reload to reset the select
+                }
+            } catch (err) {
+                alert('Network error while updating status');
+                loadVolunteers(); // Reload to reset the select
+            }
+        }
+
+        function showMessage(message, name) {
+            alert(`Message from ${name}:\n\n${message}`);
+        }
+
+        function formatInterest(interest) {
+            const interests = {
+                healthcare: 'Healthcare Support',
+                education: 'Education',
+                environment: 'Environmental',
+                community: 'Community Outreach',
+                admin: 'Administrative Support',
+                events: 'Event Planning'
+            };
+            return interests[interest] || interest;
+        }
+
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        }
+
+        function showError(message) {
+            const error = document.getElementById('error');
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.textContent = message;
+            error.classList.remove('hidden');
+        }
+
+        // Load volunteers on page load
+        loadVolunteers();
+    </script>
+</body>
+
+</html>
