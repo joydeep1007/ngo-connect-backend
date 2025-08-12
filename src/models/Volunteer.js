@@ -21,7 +21,14 @@ class Volunteer {
 
       if (error) {
         if (error.code === '23505') { // Unique constraint violation
-          throw new Error('Email already exists');
+          // Check which field caused the violation
+          if (error.message.includes('volunteers_email_key')) {
+            throw new Error('Email already exists');
+          } else if (error.message.includes('volunteers_phone_unique') || error.message.includes('phone')) {
+            throw new Error('Phone number already exists');
+          } else {
+            throw new Error('Email or phone number already exists');
+          }
         }
         throw error;
       }
@@ -68,6 +75,21 @@ class Volunteer {
         .from('volunteers')
         .select('*')
         .eq('email', email)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows returned
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  static async findByPhone(phone) {
+    try {
+      const { data, error } = await supabase
+        .from('volunteers')
+        .select('*')
+        .eq('phone', phone)
         .single();
 
       if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows returned

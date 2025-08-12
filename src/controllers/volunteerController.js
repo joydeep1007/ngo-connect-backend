@@ -18,11 +18,20 @@ export const createVolunteer = async (req, res) => {
     }
 
     // Check if email already exists
-    const existingVolunteer = await Volunteer.findByEmail(value.email);
-    if (existingVolunteer) {
+    const existingVolunteerByEmail = await Volunteer.findByEmail(value.email);
+    if (existingVolunteerByEmail) {
       return res.status(409).json({
         success: false,
         message: 'A volunteer with this email already exists'
+      });
+    }
+
+    // Check if phone number already exists
+    const existingVolunteerByPhone = await Volunteer.findByPhone(value.phone);
+    if (existingVolunteerByPhone) {
+      return res.status(409).json({
+        success: false,
+        message: 'A volunteer with this phone number already exists'
       });
     }
 

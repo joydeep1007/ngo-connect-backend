@@ -1,4 +1,4 @@
-export const errorHandler = (err, req, res, next) => {
+export const errorHandler = (err, _req, res, next) => {
   console.error('Error:', err);
 
   // Default error
@@ -16,7 +16,13 @@ export const errorHandler = (err, req, res, next) => {
 
   // Database errors
   if (err.code === '23505') {
-    error.message = 'Duplicate entry';
+    if (err.message.includes('email')) {
+      error.message = 'Email already exists';
+    } else if (err.message.includes('phone')) {
+      error.message = 'Phone number already exists';
+    } else {
+      error.message = 'Duplicate entry';
+    }
     return res.status(409).json(error);
   }
 
